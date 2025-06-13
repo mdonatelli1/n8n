@@ -2,8 +2,6 @@ services:
     ollama:
         image: ollama/ollama:latest
         restart: unless-stopped
-        ports:
-            - 11434:11434
         volumes:
             - ./ollama_data:/root/.ollama
 
@@ -19,20 +17,33 @@ services:
 
     n8n:
         image: n8nio/n8n:latest
-        ports:
-            - 5678:5678
+        restart: unless-stopped
         environment:
+            # Base de données
             - DB_TYPE=postgresdb
             - DB_POSTGRESDB_HOST=postgres
             - DB_POSTGRESDB_USER=${POSTGRES_USER}
             - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
+            - DB_POSTGRESDB_DATABASE=${POSTGRES_DB}
+            # Sécurité & gestion utilisateurs
             - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
             - N8N_USER_MANAGEMENT_JWT_SECRET=${N8N_USER_MANAGEMENT_JWT_SECRET}
+            # Configuration n8n
+            - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
+            # Options diverses
             - N8N_DIAGNOSTICS_ENABLED=false
             - N8N_PERSONALIZATION_ENABLED=false
-            - OLLAMA_HOST=${OLLAMA_HOST}
+            # Activation des runners
+            - N8N_RUNNERS_ENABLED=true
         volumes:
             - ./n8n_data:/home/node/.n8n
         depends_on:
             - ollama
             - postgres
+
+    cloudflared:
+        image: cloudflare/cloudflared:latest
+        restart: unless-stopped
+        command: tunnel --url http://n8n:5678
+        depends_on:
+            - n8n
