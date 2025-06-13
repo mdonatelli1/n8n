@@ -29,6 +29,7 @@ services:
             - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
             - N8N_USER_MANAGEMENT_JWT_SECRET=${N8N_USER_MANAGEMENT_JWT_SECRET}
             # Configuration n8n
+            - WEBHOOK_URL=${WEBHOOK_URL}
             - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
             # Options diverses
             - N8N_DIAGNOSTICS_ENABLED=false
