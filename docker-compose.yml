@@ -1,12 +1,12 @@
 services:
     ollama:
-        image: ollama/ollama:latest
+        image: ollama/ollama
         restart: unless-stopped
         volumes:
             - ./ollama_data:/root/.ollama
 
     postgres:
-        image: postgres:16-alpine
+        image: postgres:17.4-alpine
         restart: unless-stopped
         environment:
             - POSTGRES_USER=${POSTGRES_USER}
@@ -16,7 +16,7 @@ services:
             - ./postgres_data:/var/lib/postgresql/data
 
     n8n:
-        image: n8nio/n8n:latest
+        image: n8nio/n8n
         restart: unless-stopped
         environment:
             # Base de données
@@ -43,7 +43,7 @@ services:
             - postgres
 
     cloudflared:
-        image: cloudflare/cloudflared:latest
+        image: cloudflare/cloudflared
         restart: unless-stopped
         command: tunnel --url http://n8n:5678
         depends_on:
