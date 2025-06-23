@@ -1,10 +1,4 @@
 services:
-    ollama:
-        image: ollama/ollama
-        restart: unless-stopped
-        volumes:
-            - ./ollama_data:/root/.ollama
-
     postgres:
         image: postgres:17.4-alpine
         restart: unless-stopped
@@ -39,7 +33,6 @@ services:
         volumes:
             - ./n8n_data:/home/node/.n8n
         depends_on:
-            - ollama
             - postgres
 
     cloudflared:
