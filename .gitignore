@@ -1,5 +1,6 @@
 n8n_data/
 ollama_data/
 postgres_data/
+qdrant_data/
 
 .env

@@ -41,3 +41,9 @@ services:
         command: tunnel --url http://n8n:5678
         depends_on:
             - n8n
+
+    qdrant:
+        image: qdrant/qdrant
+        restart: unless-stopped
+        volumes:
+            - ./qdrant_data:/qdrant/storage
