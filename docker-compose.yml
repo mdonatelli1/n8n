@@ -31,7 +31,7 @@ services:
             # Activation des runners
             - N8N_RUNNERS_ENABLED=true
         volumes:
-            - ./n8n_data:/home/node/.n8n
+            - ./.n8n:/home/node/.n8n
         depends_on:
             - postgres
 
@@ -46,4 +46,4 @@ services:
         image: qdrant/qdrant
         restart: unless-stopped
         volumes:
-            - ./qdrant_data:/qdrant/storage
+            - ./qdrant_storage:/qdrant/storage

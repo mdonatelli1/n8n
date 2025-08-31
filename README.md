@@ -57,9 +57,9 @@ Le fichier `.env` contient les variables nécessaires à la configuration de n8n
 
 Les données critiques sont conservées localement pour assurer la continuité de service :
 
-- Les **workflows**, **identifiants** et **configurations** de n8n sont stockés dans `./n8n_data`.
+- Les **workflows**, **identifiants** et **configurations** de n8n sont stockés dans `./.n8n`.
 - La base PostgreSQL sauvegarde ses données dans `./postgres_data`.
-- Qdrant conserve ses fichiers et index dans `./qdrant_data`.
+- Qdrant conserve ses fichiers et index dans `./qdrant_storage`.
 
 Ainsi, même en cas de redémarrage ou mise à jour des conteneurs, l’état est préservé.
 
