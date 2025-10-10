@@ -47,3 +47,9 @@ services:
         restart: unless-stopped
         volumes:
             - ./qdrant_storage:/qdrant/storage
+
+    ollama:
+        image: ollama/ollama
+        restart: unless-stopped
+        volumes:
+            - ./.ollama:/root/.ollama

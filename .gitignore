@@ -1,4 +1,5 @@
 .n8n/
+.ollama/
 postgres_data/
 qdrant_storage/
 
