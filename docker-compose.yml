@@ -8,9 +8,9 @@ services:
             - POSTGRES_DB=${POSTGRES_DB}
         volumes:
             - ./postgres_data:/var/lib/postgresql/data
-
+            
     n8n:
-        image: n8nio/n8n
+        image: n8nio/n8n:latest
         restart: unless-stopped
         environment:
             # Base de données
@@ -19,37 +19,57 @@ services:
             - DB_POSTGRESDB_USER=${POSTGRES_USER}
             - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD}
             - DB_POSTGRESDB_DATABASE=${POSTGRES_DB}
+            
             # Sécurité & gestion utilisateurs
             - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
             - N8N_USER_MANAGEMENT_JWT_SECRET=${N8N_USER_MANAGEMENT_JWT_SECRET}
+            
             # Configuration n8n
             - WEBHOOK_URL=${WEBHOOK_URL}
             - GENERIC_TIMEZONE=${GENERIC_TIMEZONE}
+            - N8N_SKIP_AUTH_ON_OAUTH_CALLBACK=false
+            
+            # Proxy (pour Cloudflare Tunnel)
+            - N8N_PROXY_HOPS=1
+            
             # Options diverses
             - N8N_DIAGNOSTICS_ENABLED=false
             - N8N_PERSONALIZATION_ENABLED=false
-            # Activation des runners
+            
+            # Task Runners (OBLIGATOIRE v2.0)
             - N8N_RUNNERS_ENABLED=true
+            - N8N_RUNNERS_MODE=external
+            - N8N_RUNNERS_AUTH_TOKEN=${N8N_RUNNERS_AUTH_TOKEN}
+            - N8N_RUNNERS_BROKER_LISTEN_ADDRESS=0.0.0.0
         volumes:
             - ./.n8n:/home/node/.n8n
         depends_on:
             - postgres
-
+            
+    n8n-runner-js:
+        image: n8nio/runners:latest
+        restart: unless-stopped
+        environment:
+            - N8N_RUNNERS_AUTH_TOKEN=${N8N_RUNNERS_AUTH_TOKEN}
+            - N8N_RUNNERS_TASK_BROKER_URI=http://n8n:5679
+        depends_on:
+            - n8n
+            
     cloudflared:
-        image: cloudflare/cloudflared
+        image: cloudflare/cloudflared:latest
         restart: unless-stopped
         command: tunnel --url http://n8n:5678
         depends_on:
             - n8n
-
+            
     qdrant:
-        image: qdrant/qdrant
+        image: qdrant/qdrant:latest
         restart: unless-stopped
         volumes:
             - ./qdrant_storage:/qdrant/storage
-
+            
     ollama:
-        image: ollama/ollama
+        image: ollama/ollama:latest
         restart: unless-stopped
         volumes:
             - ./.ollama:/root/.ollama
