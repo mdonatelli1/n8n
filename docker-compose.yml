@@ -82,8 +82,8 @@ services:
         volumes:
             - ./playwright-scraper:/usr/src/app
         command: sh -c "npm install --omit=dev && node server.js"
-        environment:
-            - SCRAPER_TOKEN=${SCRAPER_TOKEN:-test123}
+        env_file:
+            - ./playwright-scraper/.env
 
     qdrant:
         image: qdrant/qdrant:latest
