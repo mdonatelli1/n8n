@@ -27,16 +27,30 @@ L'interface de n8n sera accessible via l'URL fournie par **Cloudflare Tunnel** (
 
 ## 🏷️ Versions des images
 
-`postgres`, `n8n` et `n8n-runner-js` sont pinnés à des versions précises dans le `docker-compose.yml`, pas laissés en `latest`. C'est volontaire : n8n publie régulièrement des breaking changes entre versions majeures (voir la section Ressources), et un `docker compose pull` non maîtrisé pourrait basculer silencieusement sur une version incompatible.
+`postgres`, `n8n` et `n8n-runner-js` sont pinnés dans le `docker-compose.yml`, pas laissés en `latest`. C'est volontaire : n8n publie régulièrement des breaking changes entre versions majeures (voir la section Ressources), et un `docker compose pull` non maîtrisé pourrait basculer silencieusement sur une version incompatible.
 
-Avant de monter de version :
+⚠️ **Piège à éviter :** les tags numériques de `n8nio/n8n` (ex. `2.25.3`) et de `n8nio/runners` (ex. `2.26.9`) ne sont **pas synchronisés** entre les deux images. Choisir le même numéro à la main pour les deux ne garantit pas leur compatibilité, et un numéro inventé (comme `2.0`, qui n'existe pas en tant que tag) fait simplement échouer le `docker compose up`.
+
+C'est pourquoi ce projet utilise le tag `stable` sur les deux images :
+
+```yaml
+n8n:
+    image: n8nio/n8n:stable
+...
+n8n-runner-js:
+    image: n8nio/runners:stable
+```
+
+`stable` est publié conjointement par l'équipe n8n sur les deux images pour garantir leur compatibilité mutuelle, tout en évitant les breaking changes non testés que `latest` peut introduire du jour au lendemain.
+
+Avant de vérifier la version résolue par `stable` :
 
 ```bash
 # Vérifier la version actuellement installée
 docker compose exec n8n n8n --version
 ```
 
-Consulte toujours la page des breaking changes correspondante avant de changer le tag d'image de `n8n` et `n8n-runner-js`. Les deux doivent rester sur la même version majeure l'un que l'autre.
+Si tu veux un jour figer une version numérique exacte plutôt que `stable`, vérifie d'abord sur Docker Hub que le numéro choisi existe bien pour les **deux** images (https://hub.docker.com/r/n8nio/n8n/tags et https://hub.docker.com/r/n8nio/runners/tags) avant de modifier le compose, plutôt que de supposer qu'ils correspondent.
 
 `cloudflared`, `qdrant` et `ollama` restent en `latest`, le risque de breaking change y étant nettement plus faible.
 
@@ -270,3 +284,4 @@ Le service `ollama` a une limite mémoire fixée à 6G dans le compose. Si un mo
 - ✅ **[v2.0]** OAuth sécurisé par défaut
 - ✅ Redémarrage automatique après reboot du serveur (`restart: unless-stopped` sur tous les services)
 - ✅ Ordre de démarrage fiabilisé via healthchecks (postgres → n8n → runner/cloudflared)
+- ✅ n8n et son runner pinnés sur le tag `stable` pour rester compatibles entre eux
