@@ -25,6 +25,23 @@ L'interface de n8n sera accessible via l'URL fournie par **Cloudflare Tunnel** (
 
 ---
 
+## 🏷️ Versions des images
+
+`postgres`, `n8n` et `n8n-runner-js` sont pinnés à des versions précises dans le `docker-compose.yml`, pas laissés en `latest`. C'est volontaire : n8n publie régulièrement des breaking changes entre versions majeures (voir la section Ressources), et un `docker compose pull` non maîtrisé pourrait basculer silencieusement sur une version incompatible.
+
+Avant de monter de version :
+
+```bash
+# Vérifier la version actuellement installée
+docker compose exec n8n n8n --version
+```
+
+Consulte toujours la page des breaking changes correspondante avant de changer le tag d'image de `n8n` et `n8n-runner-js`. Les deux doivent rester sur la même version majeure l'un que l'autre.
+
+`cloudflared`, `qdrant` et `ollama` restent en `latest`, le risque de breaking change y étant nettement plus faible.
+
+---
+
 ## 🌐 Accès à n8n via Cloudflare Tunnel
 
 Le conteneur `cloudflared` expose automatiquement le port `5678` de n8n à une URL publique temporaire.
@@ -58,6 +75,19 @@ Le fichier `.env` contient les variables nécessaires à la configuration de n8n
 | `WEBHOOK_URL`                   | URL publique où n8n reçoit les webhooks (URL du tunnel Cloudflare)      |
 | `GENERIC_TIMEZONE`               | Fuseau horaire utilisé par les workflows (ex: `Europe/Paris`)           |
 
+### Variables fixées dans le compose (non configurables via .env)
+
+Ces valeurs sont codées en dur dans `docker-compose.yml` et n'ont pas besoin d'être dans `.env` :
+
+| Variable                              | Valeur      | Raison                                                        |
+|----------------------------------------|-------------|----------------------------------------------------------------|
+| `N8N_PROXY_HOPS`                       | `1`         | Nécessaire car n8n est derrière le tunnel Cloudflare           |
+| `N8N_DIAGNOSTICS_ENABLED`              | `false`     | Désactive la télémétrie                                        |
+| `N8N_PERSONALIZATION_ENABLED`          | `false`     | Désactive l'écran de personnalisation au premier lancement     |
+| `N8N_RUNNERS_MODE`                     | `external`  | Le runner tourne dans un conteneur séparé                      |
+| `N8N_RUNNERS_BROKER_LISTEN_ADDRESS`    | `0.0.0.0`   | Permet au runner de joindre n8n depuis un autre conteneur      |
+| `N8N_SKIP_AUTH_ON_OAUTH_CALLBACK`      | `false`     | Authentification requise sur les callbacks OAuth               |
+
 ### Variables optionnelles
 
 ```bash
@@ -84,11 +114,38 @@ Les données critiques sont conservées localement pour assurer la continuité d
 
 ⚠️ **Nouveau en v2.0 :** Les fichiers binaires des workflows sont maintenant stockés sur le système de fichiers (`.n8n/binaryData/`) au lieu de la mémoire, ce qui améliore les performances mais nécessite plus d'espace disque.
 
+⚠️ **Permissions :** n8n tourne avec l'utilisateur `node` (uid 1000) dans le conteneur. Si `./.n8n` a été créé par un autre utilisateur (root par exemple), n8n peut échouer au démarrage avec une erreur de permission. Corrige avec :
+
+```bash
+sudo chown -R 1000:1000 ./.n8n
+```
+
 ### Vérifier l'espace disque utilisé
 
 ```bash
 du -sh .n8n/binaryData/
 df -h
+```
+
+---
+
+## 🩺 Ordre de démarrage et healthchecks
+
+Pour éviter les échecs de connexion au redémarrage (par exemple après un reboot du serveur), les services dépendent les uns des autres via des healthchecks plutôt qu'un simple `depends_on` :
+
+- **n8n** attend que **postgres** soit `healthy` (base réellement prête à accepter des connexions, pas juste le conteneur démarré).
+- **n8n-runner-js** et **cloudflared** attendent que **n8n** soit `healthy` (API répondant sur `/healthz`).
+
+Vérifier le statut de santé d'un conteneur :
+
+```bash
+docker inspect --format='{{.State.Health.Status}}' <nom_du_conteneur>
+```
+
+La réponse attendue est `healthy`. Si un service reste bloqué sur `starting` ou passe à `unhealthy`, regarde ses logs avant de chercher plus loin :
+
+```bash
+docker compose logs <nom_du_service>
 ```
 
 ---
@@ -141,6 +198,10 @@ docker compose exec n8n n8n --version
 # Utilisation mémoire des conteneurs
 docker stats --no-stream
 
+# Vérifier le statut healthy de postgres et n8n
+docker inspect --format='{{.State.Health.Status}}' postgres
+docker inspect --format='{{.State.Health.Status}}' n8n
+
 # Vérifier la connexion entre n8n et le runner
 docker compose logs n8n-runner-js | grep -i "connected"
 ```
@@ -150,6 +211,14 @@ docker compose logs n8n-runner-js | grep -i "connected"
 ## 🐛 Dépannage
 
 ### Le runner ne se connecte pas
+
+Vérifier d'abord que n8n est bien `healthy` avant de chercher côté runner, puisque `n8n-runner-js` attend ce statut pour démarrer :
+
+```bash
+docker inspect --format='{{.State.Health.Status}}' n8n
+```
+
+Puis vérifier le token et la connectivité réseau :
 
 ```bash
 # Vérifier que le token est identique
@@ -176,6 +245,10 @@ L'URL change à chaque redémarrage. Pour une URL fixe, considère :
 - Utiliser un tunnel Cloudflare nommé (configuration Cloudflare Zero Trust)
 - Ou exposer n8n avec un reverse proxy (Nginx, Traefik) + domaine fixe
 
+### Ollama consomme trop de mémoire
+
+Le service `ollama` a une limite mémoire fixée à 6G dans le compose. Si un modèle chargé dépasse cette limite, le conteneur sera arrêté par Docker plutôt que de faire un OOM sur l'hôte entier. Ajuste la limite dans `docker-compose.yml` selon les ressources disponibles sur le VPS et la taille des modèles utilisés.
+
 ---
 
 ## 📚 Ressources
@@ -195,3 +268,5 @@ L'URL change à chaque redémarrage. Pour une URL fixe, considère :
 - ✅ **[v2.0]** Exécution de code isolée et sécurisée via task runners
 - ✅ **[v2.0]** Stockage binaire optimisé sur disque
 - ✅ **[v2.0]** OAuth sécurisé par défaut
+- ✅ Redémarrage automatique après reboot du serveur (`restart: unless-stopped` sur tous les services)
+- ✅ Ordre de démarrage fiabilisé via healthchecks (postgres → n8n → runner/cloudflared)
