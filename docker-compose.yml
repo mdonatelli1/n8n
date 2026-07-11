@@ -76,9 +76,12 @@ services:
                 condition: service_healthy
 
     scraper:
-        build:
-            context: ./playwright-scraper
+        image: mcr.microsoft.com/playwright:v1.60.0-noble
         restart: unless-stopped
+        working_dir: /usr/src/app
+        volumes:
+            - ./playwright-scraper:/usr/src/app
+        command: sh -c "npm install --omit=dev && node server.js"
         environment:
             - SCRAPER_TOKEN=${SCRAPER_TOKEN:-test123}
 
