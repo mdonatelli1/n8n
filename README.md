@@ -22,6 +22,7 @@ L'interface de n8n sera accessible via l'URL fournie par **Cloudflare Tunnel** (
 - **qdrant** : moteur de recherche vectorielle pour enrichir tes workflows
 - **ollama** : modèles LLM locaux pour l'IA
 - **cloudflared** : expose n8n sur Internet via un tunnel sécurisé (sans besoin de nom de domaine)
+- **scraper** : API HTTP interne basée sur Playwright, utilisée par les workflows n8n pour scraper des pages web (rendu JS complet, pas juste du HTML brut)
 
 ---
 
@@ -166,6 +167,56 @@ docker compose logs <nom_du_service>
 
 ---
 
+## 🕷️ Service scraper (Playwright)
+
+Le service `scraper` expose une API HTTP interne sur le port `3001`, accessible depuis les autres conteneurs du projet via `http://scraper:3001/scrape`. Elle n'est pas exposée publiquement (aucun `ports:` dans le compose), uniquement joignable depuis `n8n` et les autres services du réseau interne.
+
+### Fonctionnement
+
+Le service tourne directement sur l'image officielle `mcr.microsoft.com/playwright:v1.60.0-noble` (navigateurs déjà préinstallés dedans), sans build d'image dédiée. Le code source (`server.js`, `package.json`) est monté en bind mount depuis `./playwright-scraper`, et `npm install` s'exécute à chaque démarrage du conteneur avant de lancer le serveur.
+
+### Configuration
+
+Le token d'authentification est défini dans `./playwright-scraper/.env`, séparé du `.env` principal de n8n :
+
+```
+SCRAPER_TOKEN=<valeur>
+```
+
+Ce fichier est chargé via `env_file` dans le `docker-compose.yml`, donc toute modification du token nécessite un redémarrage du service :
+
+```bash
+docker compose up -d scraper
+```
+
+### Utilisation depuis un workflow n8n
+
+Requête HTTP GET vers l'API interne, avec l'URL cible et le token en paramètres de requête :
+
+```
+http://scraper:3001/scrape?url=<url_cible>&token=<SCRAPER_TOKEN>
+```
+
+La réponse contient l'URL, le titre de la page, et le texte complet rendu après exécution du JavaScript (utile pour les pages qui chargent leur contenu dynamiquement, contrairement à un simple fetch HTTP classique).
+
+### Test rapide
+
+```bash
+docker compose exec n8n wget -qO- "http://scraper:3001/scrape?url=https://example.com&token=<SCRAPER_TOKEN>"
+```
+
+### Dépannage
+
+Si le service ne répond pas :
+
+```bash
+docker compose logs scraper
+```
+
+Vérifie que `npm install` s'est bien terminé et que le serveur a démarré. Comme le `node_modules` est déjà présent sur le disque, le démarrage est généralement rapide, mais un `npm install` peut prendre du temps si `package.json` a changé récemment.
+
+---
+
 ## 🔐 Sécurité (nouveautés v2.0)
 
 ### Task Runners
@@ -217,6 +268,9 @@ docker stats --no-stream
 # Vérifier le statut healthy de postgres et n8n
 docker inspect --format='{{.State.Health.Status}}' postgres
 docker inspect --format='{{.State.Health.Status}}' n8n
+
+# Vérifier que le scraper répond
+docker compose logs scraper --tail 20
 
 # Vérifier la connexion entre n8n et le runner
 docker compose logs n8n-runner-js | grep -i "connected"
