@@ -29,6 +29,8 @@ L'interface de n8n sera accessible via l'URL fournie par **Cloudflare Tunnel** (
 
 `postgres`, `n8n` et `n8n-runner-js` sont pinnés dans le `docker-compose.yml`, pas laissés en `latest`. C'est volontaire : n8n publie régulièrement des breaking changes entre versions majeures (voir la section Ressources), et un `docker compose pull` non maîtrisé pourrait basculer silencieusement sur une version incompatible.
 
+⚠️ **`postgres:17.4` (Debian/glibc), pas `-alpine`.** Ce projet utilisait auparavant `postgres:17.4-alpine`. L'image Alpine (musl) ne supporte pas correctement le versioning de collation avec ICU, ce qui produisait un avertissement permanent `has no actual collation version, but a version was recorded` sur chaque connexion, non corrigible via SQL. La migration vers l'image Debian/glibc élimine ce problème à la racine. Si tu dois un jour recréer ce cluster à partir de zéro, reste sur `postgres:17.4` (sans le suffixe `-alpine`) pour éviter de réintroduire ce warning.
+
 ⚠️ **Piège à éviter :** les tags numériques de `n8nio/n8n` (ex. `2.25.3`) et de `n8nio/runners` (ex. `2.26.9`) ne sont **pas synchronisés** entre les deux images. Choisir le même numéro à la main pour les deux ne garantit pas leur compatibilité, et un numéro inventé (comme `2.0`, qui n'existe pas en tant que tag) fait simplement échouer le `docker compose up`.
 
 C'est pourquoi ce projet utilise le tag `stable` sur les deux images :
